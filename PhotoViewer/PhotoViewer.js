@@ -32,8 +32,7 @@ function listAlbums() {
       });
       var message = albums.length
         ? getHtml([
-            "<p>Click on an album name to view it.</p>",
-            "<p>Click on the X to delete the album.</p>"
+            "<p>Click on an album name to view it.</p>"
           ])
         : "<p>You do not have any albums. Please Create album.";
       var htmlTemplate = [
@@ -81,7 +80,7 @@ function createAlbum(albumName) {
 }
 
 function viewAlbum(albumName) {
-  var albumPhotosKey = encodeURIComponent(albumName) + "/";
+  var albumPhotosKey = 'Albums/' + encodeURIComponent(albumName) + "/";
   s3.listObjects({ Prefix: albumPhotosKey }, function(err, data) {
     if (err) {
       return alert("There was an error viewing your album: " + err.message);
@@ -91,27 +90,31 @@ function viewAlbum(albumName) {
     var bucketUrl = href + albumBucketName + "/";
 
     var photos = data.Contents.map(function(photo) {
-      var photoKey = photo.Key;
-      var photoUrl = bucketUrl + encodeURIComponent(photoKey);
-      return getHtml([
-        "<span>",
-        "<div>",
-        '<img style="width:128px;height:128px;" src="' + photoUrl + '"/>',
-        "</div>",
-        "<div>",
-        "<span onclick=\"deletePhoto('" +
-          albumName +
-          "','" +
-          photoKey +
-          "')\">",
-        "X",
-        "</span>",
-        "<span>",
-        photoKey.replace(albumPhotosKey, ""),
-        "</span>",
-        "</div>",
-        "</span>"
-      ]);
+      if(photo.Key != albumPhotosKey){
+        console.log(photo)
+        var photoKey = photo.Key;
+        // var photoUrl = bucketUrl + encodeURIComponent(photoKey);
+        var photoUrl = 'https://mexicophotoalbum.s3.eu-central-1.amazonaws.com/Albums/Album1/IMG_20210726_161851.jpg'
+        return getHtml([
+          "<span>",
+          "<div>",
+          '<img style="width:128px;height:128px;" src="' + photoUrl + '"/>',
+          "</div>",
+          "<div>",
+          "<span onclick=\"deletePhoto('" +
+            albumName +
+            "','" +
+            photoKey +
+            "')\">",
+          "X",
+          "</span>",
+          "<span>",
+          photoKey.replace(albumPhotosKey, ""),
+          "</span>",
+          "</div>",
+          "</span>"
+        ]);
+      }
     });
     var message = photos.length
       ? "<p>Click on the X to delete the photo</p>"
@@ -144,30 +147,23 @@ function addPhoto(albumName) {
   var file = files[0];
   console.log(file.name)
   var fileName = file.name;
-  var albumPhotosKey = encodeURIComponent(albumName) + "/";
+  var albumPhotosKey = 'Albums/' + encodeURIComponent(albumName) + "/";
 
   var photoKey = albumPhotosKey + fileName;
 
-  // Use S3 ManagedUpload class as it supports multipart uploads
-  var upload = new AWS.S3.ManagedUpload({
-    params: {
-      Bucket: albumBucketName,
-      Key: photoKey,
-      Body: file
+  var params = {
+    Bucket: albumBucketName,
+    Key: photoKey,
+    Body: file
+};
+  s3.upload(params, function(err, data) {
+    if (err) {
+        throw err;
+    }else{
+      alert('success')
+      console.log(data)
     }
-  });
-
-  var promise = upload.promise();
-
-  promise.then(
-    function(data) {
-      alert("Successfully uploaded photo.");
-      viewAlbum(albumName);
-    },
-    function(err) {
-      return alert("There was an error uploading your photo: ", err.message);
-    }
-  );
+  })
 }
 
 function deletePhoto(albumName, photoKey) {
