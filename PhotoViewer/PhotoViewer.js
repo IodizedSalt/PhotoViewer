@@ -7,6 +7,8 @@ const AWSCredentials = {
   secret: config.SECRET,
   bucketName: config.ALBUM_BUCKET_NAME,
 };
+const cloudfront_url = config.CLOUDFRONT_URL
+
 const s3 = new AWS.S3({
   accessKeyId: AWSCredentials.accessKey,
   secretAccessKey: AWSCredentials.secret,
@@ -15,7 +17,13 @@ const s3 = new AWS.S3({
 });
 
 function listAlbums() {
-
+  albumName = 'Album1'
+  var albumPhotosKey = 'Albums/' + encodeURIComponent(albumName) + "/";
+  s3.listObjects({ Prefix: albumPhotosKey }, function(err, data) {
+    if (err) {
+      return alert("There was an error viewing your album: " + err.message);
+    }
+  })
   s3.listObjects({Bucket:'mexicophotoalbum', Delimiter: "/", Prefix: 'Albums/' }, function(err, data) {
     if (err) {
       return alert("There was an error listing your albums: " + err.message);
@@ -68,7 +76,6 @@ function createAlbum(albumName) {
     if (err.code !== "NotFound") {
       return alert("There was an error creating your album: " + err.message);
     }
-    console.log(albumKey)
     s3.putObject({ Key: albumKey }, function(err, data) {
       if (err) {
         return alert("There was an error creating your album: " + err.message);
@@ -90,11 +97,11 @@ function viewAlbum(albumName) {
     var bucketUrl = href + albumBucketName + "/";
 
     var photos = data.Contents.map(function(photo) {
-      if(photo.Key != albumPhotosKey){
-        console.log(photo)
+      const valid_file_types = ['.jpg', '.JPG', '.mp3', '.MP3', '.mp4', '.MP4', '.png', '.PNG', '.GIF', '.gif']
+      if(photo.Key != albumPhotosKey && valid_file_types.some(v => photo.Key.includes(v))){
         var photoKey = photo.Key;
-        // var photoUrl = bucketUrl + encodeURIComponent(photoKey);
-        var photoUrl = 'https://mexicophotoalbum.s3.eu-central-1.amazonaws.com/Albums/Album1/IMG_20210726_161851.jpg'
+        var photoUrl = cloudfront_url + encodeURIComponent(photoKey);
+        // var photoUrl = 'https://mexicophotoalbum.s3.eu-central-1.amazonaws.com/Albums/Album1/IMG_20210726_161851.jpg'
         return getHtml([
           "<span>",
           "<div>",
@@ -127,7 +134,7 @@ function viewAlbum(albumName) {
       "<div>",
       getHtml(photos),
       "</div>",
-      '<input id="photoupload" type="file" accept="image/*">',
+      '<input id="photoupload" type="file" multiple accept="image/*">',
       '<button id="addphoto" onclick="addPhoto(\'' + albumName + "')\">",
       "Add Photo",
       "</button>",
@@ -144,27 +151,53 @@ function addPhoto(albumName) {
   if (!files.length) {
     return alert("Please choose a file to upload first.");
   }
-  var file = files[0];
-  console.log(file.name)
-  var fileName = file.name;
-  var albumPhotosKey = 'Albums/' + encodeURIComponent(albumName) + "/";
-
-  var photoKey = albumPhotosKey + fileName;
-
-  var params = {
-    Bucket: albumBucketName,
-    Key: photoKey,
-    Body: file
-};
-  s3.upload(params, function(err, data) {
-    if (err) {
-        throw err;
-    }else{
-      alert('success')
-      console.log(data)
+  if(files.length == 1){
+    var file = files[0];
+    var fileName = file.name.split('.')[0] + Date.now() + '.' +    file.name.split('.')[1];
+    var albumPhotosKey = 'Albums/' + encodeURIComponent(albumName) + "/";
+  
+    var photoKey = albumPhotosKey + fileName;
+  
+    var params = {
+      Bucket: albumBucketName,
+      Key: photoKey,
+      Body: file
+  };
+    s3.upload(params, function(err, data) {
+      if (err) {
+          throw err;
+      }else{
+        alert('success')
+      }
+    })
+  }else{
+    var promises=[];
+    for(var i=0;i<files.length;i++){
+        var file = files[i];
+        promises.push(uploadLoadToS3(file, albumName));
     }
-  })
-}
+    var htmlTemplate = [
+      "<h1 class='uploading_text'>uploading</h1>"
+    ];
+    document.getElementById("app").innerHTML += getHtml(htmlTemplate);
+    Promise.all(promises).then((values) => {
+      document.getElementsByClassName("uploading_text")[0].remove()
+      alert('UPLOAD SUCCESS');
+    });
+  }
+  }
+
+  function uploadLoadToS3(ObjFile, albumName){
+    var fileName = ObjFile.name.split('.')[0] + Date.now() + '.' +   ObjFile.name.split('.')[1]
+    var albumPhotosKey = 'Albums/' + encodeURIComponent(albumName) + "/";
+    var photoKey = albumPhotosKey + fileName;
+    var params = {
+      Bucket: albumBucketName,
+      Key: photoKey,
+      Body: ObjFile
+  };
+  return s3.upload(params).promise();
+    }
 
 function deletePhoto(albumName, photoKey) {
   s3.deleteObject({ Key: photoKey }, function(err, data) {
