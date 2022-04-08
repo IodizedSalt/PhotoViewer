@@ -151,30 +151,41 @@ function addPhoto(albumName) {
   if (!files.length) {
     return alert("Please choose a file to upload first.");
   }
+  const valid_file_types = ['.jpg', '.JPG', '.mp3', '.MP3', '.mp4', '.MP4', '.png', '.PNG', '.GIF', '.gif']
   if(files.length == 1){
-    var file = files[0];
-    var fileName = file.name.split('.')[0] + Date.now() + '.' +    file.name.split('.')[1];
-    var albumPhotosKey = 'Albums/' + encodeURIComponent(albumName) + "/";
-  
-    var photoKey = albumPhotosKey + fileName;
-  
-    var params = {
-      Bucket: albumBucketName,
-      Key: photoKey,
-      Body: file
-  };
-    s3.upload(params, function(err, data) {
-      if (err) {
-          throw err;
-      }else{
-        alert('success')
+    if(valid_file_types.some(v => files[0].name.includes(v))){
+      var file = files[0];
+      var fileName = file.name.split('.')[0] + Date.now() + '.' +    file.name.split('.')[1];
+      var albumPhotosKey = 'Albums/' + encodeURIComponent(albumName) + "/";
+    
+      var photoKey = albumPhotosKey + fileName;
+    
+      var params = {
+        Bucket: albumBucketName,
+        Key: photoKey,
+        Body: file
       }
-    })
+      s3.upload(params, function(err, data) {
+        if (err) {
+            throw err;
+        }else{
+          alert('success')
+        }
+      })
+    }else{
+      alert('ERROR: Some files were not uploaded. Filetypes must be .jpg, .png, .mp3, .mp4, .png, or .gif \n \n Your other files were uploaded, however. Refresh the page to view them now.')
+    }
   }else{
     var promises=[];
     for(var i=0;i<files.length;i++){
         var file = files[i];
-        promises.push(uploadLoadToS3(file, albumName));
+        if( valid_file_types.some(v => file.name.includes(v))){
+          promises.push(uploadLoadToS3(file, albumName));
+        }else{
+          var promises=[];
+          alert('ERROR: Some files were not uploaded. Filetypes must be .jpg, .png, .mp3, .mp4, .png, or .gif \n \n Your other files were uploaded, however. Refresh the page to view them now.')
+          return
+        }
     }
     var htmlTemplate = [
       "<h1 class='uploading_text'>uploading</h1>"
@@ -188,15 +199,21 @@ function addPhoto(albumName) {
   }
 
   function uploadLoadToS3(ObjFile, albumName){
-    var fileName = ObjFile.name.split('.')[0] + Date.now() + '.' +   ObjFile.name.split('.')[1]
-    var albumPhotosKey = 'Albums/' + encodeURIComponent(albumName) + "/";
-    var photoKey = albumPhotosKey + fileName;
-    var params = {
-      Bucket: albumBucketName,
-      Key: photoKey,
-      Body: ObjFile
-  };
-  return s3.upload(params).promise();
+    const valid_file_types = ['.jpg', '.JPG', '.mp3', '.MP3', '.mp4', '.MP4', '.png', '.PNG', '.GIF', '.gif']
+    if( valid_file_types.some(v => ObjFile.name.includes(v))){
+      var fileName = ObjFile.name.split('.')[0] + Date.now() + '.' +   ObjFile.name.split('.')[1]
+      var albumPhotosKey = 'Albums/' + encodeURIComponent(albumName) + "/";
+      var photoKey = albumPhotosKey + fileName;
+      var params = {
+        Bucket: albumBucketName,
+        Key: photoKey,
+        Body: ObjFile
+    };
+    console.log(params)
+    return s3.upload(params).promise();
+    }else{
+      return
+    }
     }
 
 function deletePhoto(albumName, photoKey) {
