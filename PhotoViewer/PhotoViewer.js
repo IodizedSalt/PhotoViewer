@@ -35,7 +35,8 @@ function listAlbums() {
           "<li>",
           "<button  onclick=\"viewAlbum('" + albumName + "')\">" + albumName,
           "</button>",
-          "</li>"
+          "</li>",
+          "<br/>"
         ]);
       });
       var message = albums.length
@@ -87,6 +88,7 @@ function createAlbum(albumName) {
 }
 
 function viewAlbum(albumName) {
+  var photoArray = []
   var albumPhotosKey = 'Albums/' + encodeURIComponent(albumName) + "/";
   s3.listObjects({ Prefix: albumPhotosKey }, function(err, data) {
     if (err) {
@@ -104,22 +106,28 @@ function viewAlbum(albumName) {
         // var photoUrl = 'https://mexicophotoalbum.s3.eu-central-1.amazonaws.com/Albums/Album1/IMG_20210726_161851.jpg'
         return getHtml([
           "<span>",
-          "<div>",
-          '<img style="width:128px;height:128px;" src="' + photoUrl + '"/>',
-          "</div>",
-          "<div>",
-          "<span onclick=\"deletePhoto('" +
-            albumName +
-            "','" +
-            photoKey +
-            "')\">",
-          "X",
+            "<div class='row'>",
+              "<div class='col-sm-1 col-md-1 col-lg-1'>",
+                "<button class='btn btn-danger' onclick=\"deletePhoto('" +
+                albumName +
+                "','" +
+                photoKey +
+                "')\">",
+                "X",
+                "</button>",
+                "<input class='photoselect' type='checkbox' name='" + photoKey + "'>",
+                "</div>",
+              "<div class='col-sm-8 col-md-8 col-lg-8'>",
+                '<img style="width:50em; height 50em;" src="' + photoUrl + '"/>',
+              "</div>",
+            "</div>",
+            // "<div class='row'>",
+            // "</div>",
           "</span>",
-          "<span>",
-          photoKey.replace(albumPhotosKey, ""),
-          "</span>",
-          "</div>",
-          "</span>"
+          "<br/>"
+
+          // "<span>",
+          // photoKey.replace(albumPhotosKey, ""),
         ]);
       }
     });
@@ -130,21 +138,73 @@ function viewAlbum(albumName) {
       "<h2>",
       "Album: " + albumName,
       "</h2>",
+      "<br/>",
+      
+      "<button class='btn btn-dark' id='downloadalbum' onclick=\"downloadAlbum('" + albumName + "')\">",
+      "Download entire album",
+      "</button>",
+
+      "<button class='btn btn-dark' id='downloadalbum' onclick=\"downloadSelected('" + photoArray + "')\">",
+      "Download selected photos album",
+      "</button>",
+
+      "<br/>",
+      "<br/>",
+      "<br/>",
       message,
+      "<br/>",
+      "<br/>",
+      "<br/>",
+      "<br/>",
       "<div>",
       getHtml(photos),
       "</div>",
+      // "<div class='input-group mb-3'>",
+      // "<div class='input-group-prepend'>",
+      // "<span class='input-group-text'>Upload</span>",
+      // "</div>",
+      // "<div class='custom-file'>",
+      // "<input type='file' class='custom-file-input' id='photoupload'  multiple accept='image/*'>",
+      // "<label class='custom-file-label' for='inputGroupFile01'>Choose file</label>",
+      // "</div>",
+      // "</div>",
       '<input id="photoupload" type="file" multiple accept="image/*">',
-      '<button id="addphoto" onclick="addPhoto(\'' + albumName + "')\">",
-      "Add Photo",
+      '<button class="btn btn-primary" id="addphoto" onclick="addPhoto(\'' + albumName + "')\">",
+      "Upload Photos",
       "</button>",
-      '<button onclick="listAlbums()">',
+      '<button class="btn btn-secondary" onclick="listAlbums()">',
       "Back To Albums",
       "</button>"
     ];
     document.getElementById("app").innerHTML = getHtml(htmlTemplate);
+    document.getElementById('addphoto').disabled = true
+    document.addEventListener('change',function(){
+      document.getElementById('addphoto').disabled = false
+      checkBoxCount()
+    })
   });
 }
+
+function checkBoxCount() {
+  var photoArray = []
+  var checkbox = document.querySelectorAll('.photoselect')
+  checkbox.forEach(function(checked_photo){
+    if(checked_photo.checked){
+      photoArray.push(checked_photo.name)
+    }
+  })
+  return photoArray
+}
+
+function downloadAlbum(albumName){
+  console.log(albumName)
+}
+
+function downloadSelected(){
+  var photoArray = checkBoxCount()
+  console.log(photoArray)
+}
+
 
 function addPhoto(albumName) {
   var files = document.getElementById("photoupload").files;
